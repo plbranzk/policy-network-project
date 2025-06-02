@@ -1,0 +1,21 @@
+# Core Scraping & Parsing
+requests
+beautifulsoup4
+lxml
+
+# Data Science / Processing
+pandas
+
+# Database Support
+sqlalchemy          # For relational DB (SQLite/Postgres/MySQL)
+psycopg2-binary     # For PostgreSQL (optional, comment if not used)
+py2neo              # For Neo4j graph database (optional, comment if not used)
+
+# Utilities
+python-dotenv       # For managing .env secrets (DB credentials etc.)
+
+# Jupyter (optional, for interactive exploration & prototyping)
+jupyterlab
+
+# Data Storage/Serialization
+pyyaml              # For YAML config files (optional)

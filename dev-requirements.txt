@@ -1,0 +1,10 @@
+# Install with: pip install -r dev-requirements.txt
+
+# Include all runtime deps:
+-r requirements.txt
+
+# Plus development tools:
+pytest
+black
+flake8
+pre-commit
