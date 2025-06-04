@@ -19,15 +19,19 @@ class EurolexSpider(scrapy.Spider):
         'AUTOTHROTTLE_ENABLED': True,
     }
 
+    # store ongoing dicts
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.items_in_progress = {}
+
     def parse(self, response):
         self.page_count += 1
-
-        # --- 1. Find all document result links ---
+        # find all document result links ---
         for link in response.css('a.title::attr(href)').getall():
             full_url = response.urljoin(link)
             yield scrapy.Request(full_url, callback=self.parse_document)
 
-        # --- 2. Find and follow the "Next Page" button ---
+        # find and follow the "Next Page" button ---
         next_page = response.css('a[title="Next Page"]::attr(href)').get()
         if next_page and self.page_count < self.max_pages:
             yield response.follow(next_page, callback=self.parse)
@@ -37,21 +41,54 @@ class EurolexSpider(scrapy.Spider):
             return
         self.doc_count += 1
 
-        # Save raw HTML for reference (optional)
+        # save raw HTML for reference (optional)
         celex = self.extract_celex_from_url(response.url)
-        raw_path = f"data/raw/{celex}.html" if celex else "data/raw/unknown_celex.html"
-        with open(raw_path, "wb") as f:
-            f.write(response.body)
-
-        # Use BeautifulSoup for metadata extraction
         soup = BeautifulSoup(response.text, "html.parser")
-        metadata = {
+
+        if celex not in self.items_in_progress:
+            self.items_in_progress[celex] = {}
+
+        main_data = {
             "url": response.url,
             "celex": celex,
             "title": soup.find("h1").get_text(strip=True) if soup.find("h1") else None,
-            # ...add more fields (later from meta_extractor)
         }
-        yield metadata
+        self.items_in_progress[celex]['main'] = main_data
+
+        expected_tabs = ["Document information", "Procedure"]
+        tabs_found = 0
+        for a in soup.select("ul.MenuList a"):
+            tab_name = a.get_text(strip=True)
+            if tab_name in expected_tabs:
+                tab_url = response.urljoin(a["href"])
+                tabs_found += 1
+                yield scrapy.Request(
+                    tab_url,
+                    callback=self.parse_tab,
+                    meta={"celex": celex, "tab_name": tab_name}
+                )
+        
+        if tabs_found == 0:
+            yield self.items_in_progress.pop(celex)
+
+    def parse_tab(self, response):
+        celex = response.meta.get('celex')
+        tab_name = response.meta.get('tab_name')
+        if not celex or not tab_name:
+            return
+
+        tab_data = extract_metadata_from_html(response.text, tab=tab_name)
+        self.items_in_progress[celex][tab_name] = tab_data
+
+        expected_tabs = set(["main", "Document information", "Procedure"])
+        found_tabs = set(self.items_in_progress[celex].keys())
+        if expected_tabs.issubset(found_tabs):
+            combined = self.items_in_progress.pop(celex)
+
+            merged = {}
+            for section in combined.values():
+                merged.update(section)
+            yield merged
 
     @staticmethod
     def extract_celex_from_url(url):

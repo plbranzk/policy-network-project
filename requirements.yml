@@ -1,0 +1,22 @@
+name: envPolyGraph
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - requests
+  - beautifulsoup4
+  - lxml
+  - pandas
+  - sqlalchemy
+  - python-dotenv
+  - jupyterlab
+  - pyyaml
+  - pip:
+    - py2neo
+    - psycopg2-binary
+    - pytest
+    - black
+    - flake8
+    - pre-commit
+    - scrapy
